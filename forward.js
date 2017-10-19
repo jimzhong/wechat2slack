@@ -1,15 +1,12 @@
-var messageUrl = "https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync";
-var contactUrl = "https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact"
 var forwardUrl = "http://127.0.0.1:8080/";
 
-function addXMLRequestCallback(callback){
-    var oldSend, i;
-    if( XMLHttpRequest.callbacks ) {
+function setXMLRequestCallback(cb){
+    var oldSend;
+    if( XMLHttpRequest.callback ) {
         // we've already overridden send() so just add the callback
-        XMLHttpRequest.callbacks.push( callback );
+        XMLHttpRequest.callback = cb;
     } else {
-        // create a callback queue
-        XMLHttpRequest.callbacks = [callback];
+        XMLHttpRequest.callback = cb;
         // store the native send()
         oldSend = XMLHttpRequest.prototype.send;
         // override the native send()
@@ -20,29 +17,11 @@ function addXMLRequestCallback(callback){
             // so only really good for logging that a request has happened
             // I could be wrong, I hope so...
             // EDIT: I suppose you could override the onreadystatechange handler though
-            for( i = 0; i < XMLHttpRequest.callbacks.length; i++ ) {
-                XMLHttpRequest.callbacks[i]( this );
-            }
+            XMLHttpRequest.callback( this );
             // call the native send()
             oldSend.apply(this, arguments);
         }
     }
-}
-
-function getUrlParts(url) {
-    var a = document.createElement('a');
-    a.href = url;
-
-    return {
-        href: a.href,
-        host: a.host,
-        hostname: a.hostname,
-        port: a.port,
-        pathname: a.pathname,
-        protocol: a.protocol,
-        hash: a.hash,
-        search: a.search
-    };
 }
 
 function forward(name, text) {
@@ -51,12 +30,18 @@ function forward(name, text) {
     xhr.send(text);
 }
 
-addXMLRequestCallback( function( xhr ) {
+function getPathName(url) {
+    var a = document.createElement('a');
+    a.href = url;
+    return a.pathname
+}
+
+setXMLRequestCallback( function( xhr ) {
     setTimeout(function () {
-        if (xhr.readyState == 4 && xhr.status == 200)
+        if (xhr.readyState == 4 && xhr.status == 200 && xhr.responseURL.indexOf(forwardUrl))
         {
             console.log(JSON.parse(xhr.responseText));
-            forward(getUrlParts(xhr.responseURL).pathname.split("/").pop(), xhr.responseText);
+            forward(getPathName(xhr.responseURL).split("/").pop(), xhr.responseText);
         }
-    }, 3000);
+    }, 2000);
 });
