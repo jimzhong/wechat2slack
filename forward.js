@@ -1,5 +1,6 @@
-var urlHead = "https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync";
-var forwardUrl = "http://127.0.0.1:8080/"
+var messageUrl = "https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxsync";
+var contactUrl = "https://wx2.qq.com/cgi-bin/mmwebwx-bin/webwxbatchgetcontact"
+var forwardUrl = "http://127.0.0.1:8080/";
 
 function addXMLRequestCallback(callback){
     var oldSend, i;
@@ -28,19 +29,34 @@ function addXMLRequestCallback(callback){
     }
 }
 
+function getUrlParts(url) {
+    var a = document.createElement('a');
+    a.href = url;
 
-function forward(text) {
+    return {
+        href: a.href,
+        host: a.host,
+        hostname: a.hostname,
+        port: a.port,
+        pathname: a.pathname,
+        protocol: a.protocol,
+        hash: a.hash,
+        search: a.search
+    };
+}
+
+function forward(name, text) {
     var xhr = new XMLHttpRequest();
-    xhr.open("POST", forwardUrl, true);
-    xhr.send(text); 
+    xhr.open("POST", forwardUrl + name, true);
+    xhr.send(text);
 }
 
 addXMLRequestCallback( function( xhr ) {
     setTimeout(function () {
-        if (xhr.readyState == 4 && xhr.status == 200 && xhr.responseURL.indexOf(urlHead) == 0)
+        if (xhr.readyState == 4 && xhr.status == 200)
         {
             console.log(JSON.parse(xhr.responseText));
-            forward(xhr.responseText);
+            forward(getUrlParts(xhr.responseURL).pathname.split("/").pop(), xhr.responseText);
         }
     }, 3000);
 });
