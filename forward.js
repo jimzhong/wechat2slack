@@ -1,4 +1,4 @@
-var forwardUrl = "http://127.0.0.1:8080/";
+var forwardUrl = "http://192.168.88.6:8080/";
 
 function setXMLRequestCallback(cb){
     var oldSend;
@@ -38,9 +38,9 @@ function getPathName(url) {
 
 setXMLRequestCallback( function( xhr ) {
     setTimeout(function () {
-        if (xhr.readyState == 4 && xhr.status == 200 && xhr.responseURL.indexOf(forwardUrl))
+        if (xhr.readyState == 4 && xhr.status == 200 && xhr.responseURL.indexOf(forwardUrl) != 0)
         {
-            console.log(JSON.parse(xhr.responseText));
+            console.log(xhr);
             forward(getPathName(xhr.responseURL).split("/").pop(), xhr.responseText);
         }
     }, 2000);
