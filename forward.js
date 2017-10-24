@@ -1,4 +1,4 @@
-var forwardUrl = "http://192.168.88.6:8080/";
+var forwardUrl = "http://127.0.0.1:8080/";
 
 function setXMLRequestCallback(cb){
     var oldSend;
@@ -20,7 +20,7 @@ function setXMLRequestCallback(cb){
             XMLHttpRequest.callback( this );
             // call the native send()
             oldSend.apply(this, arguments);
-        }
+        };
     }
 }
 
@@ -33,15 +33,15 @@ function forward(name, text) {
 function getPathName(url) {
     var a = document.createElement('a');
     a.href = url;
-    return a.pathname
+    return a.pathname;
 }
 
 setXMLRequestCallback( function( xhr ) {
     setTimeout(function () {
-        if (xhr.readyState == 4 && xhr.status == 200 && xhr.responseURL.indexOf(forwardUrl) != 0)
+        if (xhr.readyState == 4 && xhr.status == 200 && xhr.responseURL.indexOf(forwardUrl) !== 0)
         {
             console.log(xhr);
             forward(getPathName(xhr.responseURL).split("/").pop(), xhr.responseText);
         }
-    }, 2000);
+    }, 3000);
 });
