@@ -1,0 +1,4 @@
+html2text==2017.10.4
+mitmproxy==2.0.2
+requests==2.18.4
+slackclient==1.0.9
