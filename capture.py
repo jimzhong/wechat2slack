@@ -3,7 +3,7 @@ import requests
 
 SERVER_URL = "http://127.0.0.1:1234"
 
-FORWARD_CONTENT_TYPES = ('text/javascript', 'application/json')
+FORWARD_CONTENT_TYPES = ('text/javascript', 'application/json', 'text/plain')
 
 def response(flow):
 
