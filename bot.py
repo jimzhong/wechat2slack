@@ -62,19 +62,19 @@ class WeChat(object):
 
     def _parse_text_msg(self, msg):
 
-        parts = self.GROUP_MSG_REGEX.match(msg['Content'])
+        m = self.GROUP_MSG_REGEX.match(msg['Content'])
 
-        if parts is None:
+        if m is None:
             # individual messages
             # do nothing
             return
         else:
             # from a group
             data = {}
-            data['content'] = parts[2]
+            data['content'] = m.group(2)
             data['group_name'] = self._get_group_name(msg['FromUserName'])
-            data['member_nickname'] = self._get_group_member_nickname(msg['FromUserName'], parts[1])
-            data['member_display_name'] = self._get_group_member_display_name(msg['FromUserName'], parts[1])
+            data['member_nickname'] = self._get_group_member_nickname(msg['FromUserName'], m.group(1))
+            data['member_display_name'] = self._get_group_member_display_name(msg['FromUserName'], m.group(1))
             return data
 
     def _handle_group_update(self, entry):
