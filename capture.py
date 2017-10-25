@@ -1,5 +1,6 @@
 from urllib.parse import urlsplit
 import requests
+from pprint import pprint
 
 SERVER_URL = "http://127.0.0.1:1234"
 
