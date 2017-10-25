@@ -1,7 +1,7 @@
 import config
 import json
 import re
-from bs4 import BeautifulSoup
+import html2text
 from pprint import pprint
 from slackclient import SlackClient
 from http.server import *
@@ -71,12 +71,7 @@ class WeChat(object):
         else:
             # from a group
             data = {}
-            try:
-                soup = BeautifulSoup(parts[2], "html.parser")
-            except:
-                print("Message content parsing error")
-                return
-            data['content'] = soup.get_text()
+            data['content'] = parts[2]
             data['group_name'] = self._get_group_name(msg['FromUserName'])
             data['member_nickname'] = self._get_group_member_nickname(msg['FromUserName'], parts[1])
             data['member_display_name'] = self._get_group_member_display_name(msg['FromUserName'], parts[1])
@@ -201,9 +196,10 @@ def post_message(message_dict):
         return
 
     try:
-        message_text = "{member_nickname} in {group_name}: {content}".format(**message_dict)
+        message_dict['text'] = html2text.html2text(message_dict['content'])
+        message_text = "{member_nickname} in {group_name}: {text}".format(**message_dict)
         if message_dict['member_display_name']:
-            message_text = "{member_display_name}({member_nickname}) in {group_name}: {content}".format(**message_dict)
+            message_text = "{member_display_name}({member_nickname}) in {group_name}: {text}".format(**message_dict)
     except KeyError:
         return
 
