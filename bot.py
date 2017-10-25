@@ -1,6 +1,7 @@
 import config
 import json
 import re
+from bs4 import BeautifulSoup
 from pprint import pprint
 from slackclient import SlackClient
 from http.server import *
@@ -61,8 +62,6 @@ class WeChat(object):
 
     def _parse_text_msg(self, msg):
 
-        # print("Got text message")
-        # pprint(msg)
         parts = self.GROUP_MSG_REGEX.match(msg['Content'])
 
         if parts is None:
@@ -72,26 +71,56 @@ class WeChat(object):
         else:
             # from a group
             data = {}
-            data['content'] = parts[2].replace('<br/>', '\n')
+            try:
+                soup = BeautifulSoup(parts[2], "html.parser")
+            except:
+                print("Message content parsing error")
+                return
+            data['content'] = soup.get_text()
             data['group_name'] = self._get_group_name(msg['FromUserName'])
             data['member_nickname'] = self._get_group_member_nickname(msg['FromUserName'], parts[1])
             data['member_display_name'] = self._get_group_member_display_name(msg['FromUserName'], parts[1])
             return data
 
+    def _handle_group_update(self, entry):
+
+        print("Got group {}, containing {} members".format(entry['NickName'],
+            len(entry['MemberList'])))
+
+        key = entry['UserName']
+
+        try:
+            self.groups[key].update(entry)
+        except KeyError:
+            self.groups[key] = entry
+
+        # dict for fast mapping from username to NickName, DisplayName
+        d = {}
+        for member in entry['MemberList']:
+            try:
+                d[member['UserName']].update(member)
+            except KeyError:
+                d[member['UserName']] = member
+
+        try:
+            self.groups[key]['MemberDict'].update(d)
+        except KeyError:
+            self.groups[key]['MemberDict'] = d
+
     def _handle_contact_update(self, entry):
-        if entry['UserName'].startswith('@@'):
-            # it is a group
-            self.groups[entry['UserName']] = entry
-            print("Got group {}, containing {} members".format(entry['NickName'], len(entry['MemberList'])))
-            # pprint(entry)
-            # dict for fast mapping from username to NickName, DisplayName
-            entry['MemberDict'] = {}
-            for member in entry['MemberList']:
-                entry['MemberDict'][member['UserName']] = member
+        try:
+            key = entry['UserName']
+        except KeyError:
+            return
+        if key.startswith('@@'):
+            self._handle_group_update(entry)
         else:
-            # it is not a group
-            # print("individual entry:", entry)
-            self.contacts[entry['UserName']] = entry
+            try:
+                # update that contact entry if it exists
+                # allow incremental updates
+                self.contacts[key].update(entry)
+            except KeyError:
+                self.contacts[key] = entry
 
 
     def handle_webwxsync(self, data):
@@ -113,8 +142,11 @@ class WeChat(object):
             self._handle_contact_update(entry)
 
     def handle_webwxgetcontact(self, data):
-        print("UNHANDLED DATA")
-        pprint(data)
+
+        print("Adding {} contacts".format(data["MemberCount"]))
+
+        for entry in data["MemberList"]:
+            self._handle_contact_update(entry)
 
 
 
@@ -167,13 +199,17 @@ class MyHTTPHandler(BaseHTTPRequestHandler):
 def post_message(message_dict):
     if message_dict is None:
         return
-    pprint(message_dict)
+
     try:
-        message = "{member_display_name}({member_nickname}) in {group_name}: {content}".format(**message_dict)
+        message_text = "{member_nickname} in {group_name}: {content}".format(**message_dict)
+        if message_dict['member_display_name']:
+            message_text = "{member_display_name}({member_nickname}) in {group_name}: {content}".format(**message_dict)
     except KeyError:
         return
-    # if message_dict['group_name'] in FORWARDING_GROUP_NAMES:
-    sc.api_call("chat.postMessage", channel=config.channel, text=message)
+
+    if message_dict['group_name'] in FORWARDING_GROUP_NAMES:
+        sc.api_call("chat.postMessage", channel=config.channel, text=message_text)
+        print("Forwarded message:", message_text)
 
 if __name__ == "__main__":
     sc = SlackClient(config.slack_token)
