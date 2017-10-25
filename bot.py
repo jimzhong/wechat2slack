@@ -199,6 +199,8 @@ def post_message(message_dict):
     if message_dict is None:
         return
 
+    pprint(message_dict)
+
     try:
         message_dict['text'] = html2text.html2text(message_dict['content'])
         message_text = "{member_nickname} in {group_name}: {text}".format(**message_dict)
