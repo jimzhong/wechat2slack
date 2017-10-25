@@ -190,6 +190,10 @@ class MyHTTPHandler(BaseHTTPRequestHandler):
 
         self.wfile.write((resp + "\r\n").encode())
 
+    def log_message(self, format, *args):
+        # log nothing
+        pass
+
 
 def post_message(message_dict):
     if message_dict is None:
