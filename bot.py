@@ -10,6 +10,13 @@ global sc
 
 FORWARDING_GROUP_NAMES = config.groups
 
+def debug(url, body):
+
+    for x in FORWARDING_GROUP_NAMES:
+        if x in body:
+            print("{} IN {}".format(x, url))
+            print(x)
+
 class WeChat(object):
 
     GROUP_MSG_REGEX = re.compile(r"^(@[0-9a-f]+):<br/>(.*)")
@@ -114,7 +121,7 @@ class WeChat(object):
 class MyHTTPHandler(BaseHTTPRequestHandler):
 
     def do_POST(self):
-        body = self.rfile.read(int(self.headers['Content-Length']))
+        body = self.rfile.read(int(self.headers['Content-Length'])).decode('utf-8', 'replace')
         self.send_response(200, "OK")
         self.send_header("Access-Control-Allow-Origin", "*")
         self.end_headers()
@@ -122,16 +129,18 @@ class MyHTTPHandler(BaseHTTPRequestHandler):
         try:
             data = json.loads(body)
         except ValueError:
-            # print("JSON decode error")
             self.wfile.write(b"Error\r\n")
+            # ignore non json responses
             return
 
+        path = self.path.replace("/cgi-bin/mmwebwx-bin/", "")
+
         try:
-            if self.path.startswith('/webwxbatchgetcontact'):
+            if path.startswith('webwxbatchgetcontact'):
                 wx.handle_webwxbatchgetcontact(data)
-            elif self.path.startswith('/webwxsync'):
+            elif path.startswith('webwxsync'):
                 wx.handle_webwxsync(data)
-            elif self.path.startswith('/webwxgetcontact'):
+            elif path.startswith('webwxgetcontact'):
                 wx.handle_webwxgetcontact(data)
         except (ValueError, KeyError, IndexError) as e:
             print(e)
@@ -156,6 +165,8 @@ class MyHTTPHandler(BaseHTTPRequestHandler):
 
 
 def post_message(message_dict):
+    if message_dict is None:
+        return
     pprint(message_dict)
     try:
         message = "{member_display_name}({member_nickname}) in {group_name}: {content}".format(**message_dict)
