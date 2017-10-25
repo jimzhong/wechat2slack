@@ -1,14 +1,16 @@
 from urllib.parse import urlsplit
 import requests
-from pprint import pprint
 
 SERVER_URL = "http://127.0.0.1:1234"
+
+FORWARD_CONTENT_TYPES = ('text/javascript', 'application/json')
 
 def response(flow):
 
     url = urlsplit(flow.request.url)
-    headers = flow.response.headers
-    pprint(headers)
+    content_type = flow.response.headers.get('Content-Type')
+    if content_type not in FORWARD_CONTENT_TYPES:
+        return
     if url.netloc.endswith("wx2.qq.com"):
         try:
             requests.post(SERVER_URL + url.path, flow.response.content)
