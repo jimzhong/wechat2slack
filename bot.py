@@ -3,39 +3,44 @@ import json
 import re
 import html2text
 from pprint import pprint
+from enum import Enum
 from slackclient import SlackClient
 from http.server import *
 
 global wx
 global sc
 
-FORWARDING_GROUP_NAMES = config.groups
 
-def debug(url, body):
+class WeChatMsgType(Enum):
 
-    for x in FORWARDING_GROUP_NAMES:
-        if x in body:
-            print("{} IN {}".format(x, url))
-            print(x)
+    TEXT = 1
+    IMAGE = 3
+    VOICE = 34
+    ANIMATION = 47
+    CONTACT_CARD = 42
+    VIDEO = 43
+
 
 class WeChat(object):
 
     GROUP_MSG_REGEX = re.compile(r"^(@[0-9a-f]+):<br/>(.*)")
 
+
     def __init__(self, callback):
         self.msg_parsers = {}
-        self.msg_parsers[1] = self._parse_text_msg
+        self.msg_parsers[WeChatMsgType.TEXT] = self._parse_text_msg
+        self.msg_parsers[WeChatMsgType.IMAGE] = self._parse_image_msg
         self.cb = callback
         self.contacts = {}
         self.groups = {}
 
-    def _get_contacts_nickname(self, username):
+    def _get_contact_nickname(self, username):
         if username in self.contacts:
             return self.contacts[username]['NickName']
         else:
             return None
 
-    def _get_contacts_display_name(self, username):
+    def _get_contact_display_name(self, username):
         try:
             return self.contacts[username]['DisplayName']
         except KeyError:
@@ -59,23 +64,36 @@ class WeChat(object):
         except KeyError:
             return self._get_contacts_display_name(member_username)
 
-
-    def _parse_text_msg(self, msg):
-
+    def _get_message_basic_info(self, msg):
+        data = {}
         m = self.GROUP_MSG_REGEX.match(msg['Content'])
+        data['MsgId'] = msg.get('MsgId', None)
 
         if m is None:
-            # individual messages
-            # do nothing
-            return
+            # from an individual
+            data['content'] = msg['Content']
+            data['contact_nickname'] = self._get_contact_nickname(msg['FromUserName'])
+            data['contact_display_name'] = self._get_contacts_display_name(msg['FromUserName'])
         else:
             # from a group
-            data = {}
             data['content'] = m.group(2)
             data['group_name'] = self._get_group_name(msg['FromUserName'])
             data['member_nickname'] = self._get_group_member_nickname(msg['FromUserName'], m.group(1))
             data['member_display_name'] = self._get_group_member_display_name(msg['FromUserName'], m.group(1))
-            return data
+        return data
+
+
+    def _parse_text_msg(self, msg):
+
+        data = self._get_message_basic_info(msg)
+        data['MsgType'] = WeChatMsgType.TEXT
+        return data
+
+    def _parse_image_msg(self, msg):
+
+        data = self._get_message_basic_info(msg)
+        data['MsgType'] = WeChatMsgType.IMAGE
+        return data
 
     def _handle_group_update(self, entry):
 
@@ -190,28 +208,33 @@ class MyHTTPHandler(BaseHTTPRequestHandler):
 
         self.wfile.write((resp + "\r\n").encode())
 
-    def log_message(self, format, *args):
-        # log nothing
-        pass
+    # def log_message(self, format, *args):
+    #     # log nothing
+    #     pass
 
 
 def post_message(message_dict):
+
     if message_dict is None:
         return
-
     pprint(message_dict)
 
-    try:
+    if message_dict['MsgType'] == WeChatMsgType.TEXT:
         message_dict['text'] = html2text.html2text(message_dict['content'])
+    elif message_dict['MsgType'] == WeChatMsgType.IMAGE:
+        message_dict['text'] = "[IMAGE]"
+
+    try:
         message_text = "{member_nickname} in {group_name}: {text}".format(**message_dict)
         if message_dict['member_display_name']:
             message_text = "{member_display_name}({member_nickname}) in {group_name}: {text}".format(**message_dict)
     except KeyError:
         return
 
-    if message_dict['group_name'] in FORWARDING_GROUP_NAMES:
+    if message_dict['group_name'] in config.groups:
         sc.api_call("chat.postMessage", channel=config.channel, text=message_text)
         print("Forwarded message:", message_text)
+
 
 if __name__ == "__main__":
     sc = SlackClient(config.slack_token)
